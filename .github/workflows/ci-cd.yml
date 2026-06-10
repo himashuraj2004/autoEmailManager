@@ -84,11 +84,14 @@ jobs:
         uses: azure/setup-kubectl@v3
 
       - name: Configure kubeconfig
-        run: echo "${{ secrets.KUBECONFIG }}" | base64 -d > kubeconfig.yaml
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
 
       - name: Deploy to Kubernetes
         env:
-          KUBECONFIG: kubeconfig.yaml
+          KUBECONFIG: $HOME/.kube/config
           IMAGE_TAG: sha-${{ github.sha }}
         run: |
           kubectl set image deployment/doable1 \
