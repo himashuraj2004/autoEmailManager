@@ -1,0 +1,1341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Course Notification Dispatch</title>
+  <style>
+    /* ── Design Tokens ─────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:              #F7F8FA;
+      --surface:         #FFFFFF;
+      --surface-subtle:  #F3F4F6;
+      --border:          #E5E7EB;
+      --border-strong:   #D1D5DB;
+      --text:            #111827;
+      --text-secondary:  #6B7280;
+      --text-tertiary:   #9CA3AF;
+      --accent:          #2563EB;
+      --accent-hover:    #1D4ED8;
+      --accent-subtle:   #EFF6FF;
+      --success:         #059669;
+      --success-subtle:  #ECFDF5;
+      --error:           #DC2626;
+      --error-subtle:    #FEF2F2;
+      --sidebar-w:       272px;
+      --nav-h:           49px;
+      --radius:          6px;
+      --radius-md:       8px;
+      --font:            -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
+    }
+
+    html, body { height: 100%; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* ── App Shell ─────────────────────────────────────────────────────── */
+    .app { display: flex; flex-direction: column; min-height: 100vh; }
+
+    /* ── Top Nav ───────────────────────────────────────────────────────── */
+    .nav {
+      height: var(--nav-h);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      gap: 8px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .nav-logo {
+      width: 26px;
+      height: 26px;
+      background: var(--accent);
+      border-radius: 6px;
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+    }
+    .nav-logo svg { width: 14px; height: 14px; color: #fff; }
+
+    .nav-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.01em;
+      white-space: nowrap;
+    }
+
+    .nav-sep {
+      width: 1px;
+      height: 16px;
+      background: var(--border);
+      flex-shrink: 0;
+    }
+
+    .nav-sub {
+      font-size: 13px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .nav-actions { display: flex; align-items: center; gap: 8px; }
+
+    /* Config toggle — mobile only */
+    .btn-config-toggle {
+      display: none;
+      align-items: center;
+      gap: 6px;
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 500;
+      padding: 5px 10px;
+      cursor: pointer;
+      font-family: var(--font);
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-config-toggle svg { width: 13px; height: 13px; }
+    .btn-config-toggle:hover { border-color: var(--border-strong); color: var(--text); }
+
+    .btn-ghost {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 500;
+      padding: 5px 12px;
+      cursor: pointer;
+      font-family: var(--font);
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .btn-ghost svg { width: 13px; height: 13px; flex-shrink: 0; }
+    .btn-ghost:hover {
+      border-color: var(--border-strong);
+      color: var(--text);
+      background: var(--surface-subtle);
+    }
+
+    /* ── Body Layout ───────────────────────────────────────────────────── */
+    .body-layout { display: flex; flex: 1; min-height: 0; }
+
+    /* ── Sidebar ───────────────────────────────────────────────────────── */
+    .sidebar {
+      width: var(--sidebar-w);
+      min-width: var(--sidebar-w);
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 24px 18px 40px;
+      height: calc(100vh - var(--nav-h));
+      position: sticky;
+      top: var(--nav-h);
+    }
+
+    .sb-section { margin-bottom: 24px; }
+    .sb-section + .sb-section {
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+
+    .sb-section-title {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-tertiary);
+      margin-bottom: 14px;
+    }
+    .sb-section-title svg { width: 11px; height: 11px; flex-shrink: 0; }
+
+    /* Form fields */
+    .field { margin-bottom: 11px; }
+    .field:last-child { margin-bottom: 0; }
+
+    .label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+
+    .input {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 7px 10px;
+      font-size: 13px;
+      color: var(--text);
+      outline: none;
+      font-family: var(--font);
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .input::placeholder { color: var(--text-tertiary); }
+    .input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+    }
+
+    /* Port stepper */
+    .port-row {
+      display: flex;
+      align-items: stretch;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .port-row:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+    }
+    .port-row input {
+      flex: 1;
+      border: none;
+      padding: 7px 10px;
+      font-size: 13px;
+      color: var(--text);
+      outline: none;
+      font-family: var(--font);
+      background: transparent;
+      -moz-appearance: textfield;
+    }
+    .port-row input::-webkit-outer-spin-button,
+    .port-row input::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .port-btn {
+      width: 30px;
+      background: var(--surface-subtle);
+      border: none;
+      color: var(--text-secondary);
+      font-size: 15px;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      transition: background 0.1s, color 0.1s;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+    .port-btn:hover { background: var(--border); color: var(--text); }
+    .port-btn:first-of-type { border-right: 1px solid var(--border); }
+    .port-btn:last-of-type  { border-left: 1px solid var(--border); }
+
+    /* Password field */
+    .pw-wrap { position: relative; }
+    .pw-wrap .input { padding-right: 34px; }
+    .pw-toggle {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      color: var(--text-tertiary);
+      cursor: pointer;
+      padding: 2px;
+      display: flex;
+      align-items: center;
+      line-height: 1;
+    }
+    .pw-toggle:hover { color: var(--text-secondary); }
+    .pw-toggle svg { width: 14px; height: 14px; }
+
+    /* Checkbox */
+    .checkbox-row { display: flex; align-items: center; gap: 8px; }
+    .checkbox-row input[type="checkbox"] {
+      width: 14px;
+      height: 14px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+    .checkbox-row label { font-size: 13px; color: var(--text); cursor: pointer; }
+
+    /* ── Main Content ───────────────────────────────────────────────────── */
+    .main { flex: 1; min-width: 0; overflow-y: auto; }
+    .content { max-width: 760px; padding: 40px 48px 80px; }
+
+    /* ── Page Header ────────────────────────────────────────────────────── */
+    .page-header { margin-bottom: 32px; }
+    .page-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.02em;
+      margin-bottom: 5px;
+    }
+    .page-desc { font-size: 13px; color: var(--text-secondary); line-height: 1.5; }
+
+    /* ── Step Header ────────────────────────────────────────────────────── */
+    .step { margin-bottom: 28px; }
+    .step-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .step-num {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 1.5px solid var(--border-strong);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-secondary);
+      flex-shrink: 0;
+      background: var(--surface);
+    }
+    .step-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
+
+    /* ── Upload Grid ────────────────────────────────────────────────────── */
+    .upload-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .upload-col-label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .upload-zone {
+      background: var(--surface);
+      border: 1.5px dashed var(--border-strong);
+      border-radius: var(--radius-md);
+      padding: 18px 14px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      cursor: pointer;
+      position: relative;
+      transition: border-color 0.15s, background 0.15s;
+      min-height: 84px;
+      justify-content: center;
+      gap: 7px;
+    }
+    .upload-zone:hover, .upload-zone.dragover {
+      border-color: var(--accent);
+      background: var(--accent-subtle);
+    }
+    .upload-zone.has-file {
+      border-style: solid;
+      border-color: var(--success);
+      background: var(--success-subtle);
+    }
+    .upload-zone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    .upload-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: var(--radius);
+      background: var(--surface-subtle);
+      border: 1px solid var(--border);
+      display: grid;
+      place-items: center;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .upload-icon svg { width: 14px; height: 14px; color: var(--text-secondary); }
+    .upload-zone:hover .upload-icon,
+    .upload-zone.dragover .upload-icon {
+      background: #dbeafe;
+      border-color: #bfdbfe;
+    }
+    .upload-zone:hover .upload-icon svg,
+    .upload-zone.dragover .upload-icon svg { color: var(--accent); }
+    .upload-zone.has-file .upload-icon {
+      background: #d1fae5;
+      border-color: #a7f3d0;
+    }
+    .upload-zone.has-file .upload-icon svg { color: var(--success); }
+
+    .upload-body { display: flex; flex-direction: column; gap: 2px; }
+    .upload-cta {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .upload-hint { font-size: 11px; color: var(--text-tertiary); }
+    .upload-filename {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--success);
+      display: none;
+      max-width: 180px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .upload-zone.has-file .upload-cta { display: none; }
+    .upload-zone.has-file .upload-hint { display: none; }
+    .upload-zone.has-file .upload-filename { display: block; }
+
+    /* ── Status Bar ─────────────────────────────────────────────────────── */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--surface-subtle);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 9px 13px;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+    .status-bar svg { width: 14px; height: 14px; flex-shrink: 0; }
+    .status-bar.success {
+      background: var(--success-subtle);
+      border-color: #a7f3d0;
+      color: var(--success);
+    }
+    .status-bar.error {
+      background: var(--error-subtle);
+      border-color: #fecaca;
+      color: var(--error);
+    }
+
+    /* ── Demo Links ─────────────────────────────────────────────────────── */
+    .demo-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    .demo-label { font-size: 12px; color: var(--text-tertiary); }
+    .demo-link {
+      font-size: 12px;
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .demo-link:hover { text-decoration: underline; }
+    .demo-sep { color: var(--text-tertiary); font-size: 12px; }
+
+    /* ── Divider ────────────────────────────────────────────────────────── */
+    .divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+
+    /* ── Send Card ──────────────────────────────────────────────────────── */
+    .send-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 18px 22px;
+    }
+    .send-card-desc {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.55;
+      margin-bottom: 16px;
+    }
+    .send-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .send-meta { font-size: 12px; color: var(--text-tertiary); }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      background: var(--accent);
+      border: none;
+      border-radius: var(--radius);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 18px;
+      cursor: pointer;
+      font-family: var(--font);
+      letter-spacing: -0.01em;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    .btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+    .btn-spinner {
+      width: 13px;
+      height: 13px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Results ────────────────────────────────────────────────────────── */
+    #resultsBlock { display: none; }
+
+    .results-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .results-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 14px 18px;
+    }
+    .stat-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.03em;
+      line-height: 1;
+      margin-bottom: 4px;
+      font-variant-numeric: tabular-nums;
+    }
+    .stat-value.blue  { color: var(--accent); }
+    .stat-value.teal  { color: #0891B2; }
+    .stat-value.red   { color: var(--error); }
+    .stat-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-tertiary);
+    }
+
+    /* ── Table ──────────────────────────────────────────────────────────── */
+    .table-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+    }
+    .table-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 11px 15px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-subtle);
+    }
+    .table-card-title { font-size: 13px; font-weight: 600; color: var(--text); }
+    .table-badge {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 1px 8px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+    .table-scroll { overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; font-size: 12px; min-width: 560px; }
+    thead th {
+      background: var(--surface-subtle);
+      color: var(--text-tertiary);
+      padding: 8px 12px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+      border-bottom: 1px solid var(--border);
+    }
+    tbody td {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text);
+      font-size: 12px;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: var(--surface-subtle); }
+
+    .tag {
+      display: inline-block;
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .tag-blue  { background: var(--accent-subtle); color: var(--accent); }
+    .tag-red   { background: var(--error-subtle);  color: var(--error); }
+    .tag-green { background: var(--success-subtle); color: var(--success); }
+
+    /* ── Toast ──────────────────────────────────────────────────────────── */
+    #toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      max-width: 300px;
+      background: var(--text);
+      color: #fff;
+      padding: 9px 15px;
+      border-radius: var(--radius);
+      font-size: 13px;
+      font-weight: 500;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+      transform: translateY(12px);
+      opacity: 0;
+      transition: transform 0.22s cubic-bezier(0.16,1,0.3,1), opacity 0.22s;
+      z-index: 9999;
+      pointer-events: none;
+    }
+    #toast.show      { transform: translateY(0); opacity: 1; }
+    #toast.toast-err { background: var(--error); }
+    #toast.toast-ok  { background: var(--success); }
+
+    /* ── Processing Overlay ─────────────────────────────────────────────── */
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(247,248,250,0.85);
+      backdrop-filter: blur(3px);
+      z-index: 999;
+      align-items: center;
+      justify-content: center;
+    }
+    .overlay.show { display: flex; }
+    .overlay-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 28px 32px;
+      max-width: 268px;
+      width: 90%;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.07);
+    }
+    .ov-spinner {
+      width: 32px;
+      height: 32px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 14px;
+    }
+    .ov-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+    .ov-sub   { font-size: 12px; color: var(--text-secondary); margin-bottom: 14px; }
+    .ov-steps { display: flex; flex-direction: column; gap: 6px; }
+    .ov-step {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-tertiary);
+    }
+    .ov-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--border);
+      flex-shrink: 0;
+    }
+    .ov-step.active { color: var(--accent); }
+    .ov-step.active .ov-dot { background: var(--accent); }
+    .ov-step.done   { color: var(--success); }
+    .ov-step.done .ov-dot   { background: var(--success); }
+
+    /* ── Sidebar overlay (mobile) ───────────────────────────────────────── */
+    .sidebar-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.25);
+      z-index: 199;
+      top: var(--nav-h);
+    }
+
+    /* ── Responsive ─────────────────────────────────────────────────────── */
+    @media (max-width: 800px) {
+      .nav-sub { display: none; }
+      .nav-sep { display: none; }
+    }
+
+    @media (max-width: 768px) {
+      .btn-config-toggle { display: inline-flex; }
+
+      .sidebar {
+        display: none;
+        position: fixed;
+        top: var(--nav-h);
+        left: 0;
+        height: calc(100vh - var(--nav-h));
+        z-index: 200;
+        box-shadow: 4px 0 16px rgba(0,0,0,0.08);
+      }
+      .sidebar.open { display: block; }
+      .sidebar-backdrop.show { display: block; }
+
+      .content { padding: 24px 20px 60px; }
+      .upload-grid { grid-template-columns: 1fr; }
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+      .send-footer { flex-direction: column; align-items: stretch; }
+      .btn-primary { width: 100%; justify-content: center; }
+    }
+
+    @media (max-width: 520px) {
+      .stats-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (min-width: 769px) and (max-width: 1024px) {
+      .content { padding: 32px 32px 60px; }
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* Focus visible for keyboard nav */
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+    button:focus:not(:focus-visible),
+    input:focus:not(:focus-visible) { outline: none; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ══════════════════════════════════════════════
+       TOP NAV
+  ══════════════════════════════════════════════ -->
+  <nav class="nav" role="navigation" aria-label="Application navigation">
+    <div class="nav-brand">
+      <div class="nav-logo" aria-hidden="true">
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M2 2h10v8H2z"/><path d="M5 10v2m4-2v2M2 5h10"/>
+        </svg>
+      </div>
+      <span class="nav-name">Dispatch</span>
+      <div class="nav-sep" aria-hidden="true"></div>
+      <span class="nav-sub">Course Notification</span>
+    </div>
+    <div class="nav-actions">
+      <button class="btn-config-toggle" onclick="toggleSidebar()" type="button" aria-label="Toggle configuration panel">
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="5" cy="4" r="1.5"/><path d="M1 4h2.5M6.5 4H13M1 10h6.5M10 10h3"/><circle cx="8.5" cy="10" r="1.5"/>
+        </svg>
+        Config
+      </button>
+      <button class="btn-ghost" onclick="resetForm()" type="button" aria-label="Reset the form">
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M1.5 7A5.5 5.5 0 1 0 3 3.2"/><polyline points="1,1 1,4 4,4"/>
+        </svg>
+        Reset
+      </button>
+    </div>
+  </nav>
+
+  <div class="body-layout">
+
+    <!-- ══════════════════════════════════════════════
+         SIDEBAR — Configuration Panel
+    ══════════════════════════════════════════════ -->
+    <aside class="sidebar" id="sidebar" aria-label="Configuration panel">
+
+      <!-- SMTP Configuration -->
+      <div class="sb-section">
+        <div class="sb-section-title">
+          <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="7" cy="7" r="2.5"/><path d="M7 1v1.5M7 11.5V13M1 7h1.5M11.5 7H13M2.9 2.9l1.1 1.1M10 10l1.1 1.1M2.9 11.1L4 10M10 4l1.1-1.1"/>
+          </svg>
+          SMTP Configuration
+        </div>
+
+        <div class="field">
+          <label class="label" for="smtpHost">SMTP Host</label>
+          <input type="text" id="smtpHost" class="input" placeholder="smtp.gmail.com" value="smtp.gmail.com" autocomplete="off" />
+        </div>
+
+        <div class="field">
+          <label class="label" for="smtpPort">Port</label>
+          <div class="port-row">
+            <button class="port-btn" type="button" onclick="adjustPort(-1)" aria-label="Decrease port">&#8722;</button>
+            <input type="number" id="smtpPort" value="587" min="1" max="65535" aria-label="SMTP port number" />
+            <button class="port-btn" type="button" onclick="adjustPort(1)" aria-label="Increase port">+</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label class="label" for="fromEmail">Sender Email</label>
+          <input type="email" id="fromEmail" class="input" placeholder="you@company.com" autocomplete="email" />
+        </div>
+
+        <div class="field">
+          <label class="label" for="smtpUsername">Username</label>
+          <input type="email" id="smtpUsername" class="input" placeholder="you@company.com" autocomplete="username" />
+        </div>
+
+        <div class="field">
+          <label class="label" for="smtpPassword">App Password</label>
+          <div class="pw-wrap">
+            <input type="password" id="smtpPassword" class="input" autocomplete="current-password" />
+            <button class="pw-toggle" type="button" onclick="togglePw('smtpPassword', this)" aria-label="Toggle password visibility">
+              <svg id="eye-smtpPassword" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M1 7s2-4 6-4 6 4 6 4-2 4-6 4-6-4-6-4z"/><circle cx="7" cy="7" r="1.5"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="field">
+          <div class="checkbox-row">
+            <input type="checkbox" id="useTls" checked />
+            <label for="useTls">Use TLS (STARTTLS)</label>
+          </div>
+        </div>
+      </div>
+
+      <!-- CEO Details -->
+      <div class="sb-section">
+        <div class="sb-section-title">
+          <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="7" cy="4.5" r="2.5"/><path d="M1.5 13c0-3 2.5-5 5.5-5s5.5 2 5.5 5"/>
+          </svg>
+          CEO Details
+        </div>
+
+        <div class="field">
+          <label class="label" for="ceoName">Full Name</label>
+          <input type="text" id="ceoName" class="input" placeholder="Rajesh Sharma" autocomplete="off" />
+        </div>
+
+        <div class="field">
+          <label class="label" for="ceoEmail">Email Address</label>
+          <input type="email" id="ceoEmail" class="input" placeholder="ceo@company.com" autocomplete="off" />
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- Backdrop for mobile sidebar -->
+    <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="toggleSidebar()" aria-hidden="true"></div>
+
+    <!-- ══════════════════════════════════════════════
+         MAIN CONTENT
+    ══════════════════════════════════════════════ -->
+    <main class="main" role="main">
+      <div class="content">
+
+        <!-- Page Header -->
+        <header class="page-header">
+          <h1 class="page-title">Course Notification Dispatch</h1>
+          <p class="page-desc">Upload two Excel files to identify active employees with incomplete courses, then send personalised email notifications to employees, their mentors, and the CEO.</p>
+        </header>
+
+        <!-- ── Step 1: Upload Files ── -->
+        <section class="step" aria-labelledby="step1-title">
+          <div class="step-header">
+            <div class="step-num" aria-hidden="true">1</div>
+            <h2 class="step-title" id="step1-title">Upload Files</h2>
+          </div>
+
+          <div class="upload-grid">
+            <!-- Course Progress -->
+            <div>
+              <div class="upload-col-label">Course Progress</div>
+              <div class="upload-zone" id="dz-course" role="button" tabindex="0"
+                   aria-label="Upload Course Progress Excel file"
+                   ondragover="dzOver(event,'dz-course')"
+                   ondragleave="dzLeave('dz-course')"
+                   ondrop="dzDrop(event,'dz-course','courseFile')"
+                   onkeydown="if(event.key==='Enter'||event.key===' ')document.getElementById('courseFile').click()">
+                <input type="file" id="courseFile" accept=".xlsx" aria-label="Course Progress Excel file"
+                       onchange="fileChosen('courseFile','dz-course','courseFileName')" />
+                <div class="upload-icon" aria-hidden="true">
+                  <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M7 9V1M4 4l3-3 3 3M2 11h10v2H2z"/>
+                  </svg>
+                </div>
+                <div class="upload-body">
+                  <span class="upload-cta">Click to upload</span>
+                  <span class="upload-hint">XLSX files only</span>
+                  <span class="upload-filename" id="courseFileName"></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Active Employees -->
+            <div>
+              <div class="upload-col-label">Active Employees</div>
+              <div class="upload-zone" id="dz-emp" role="button" tabindex="0"
+                   aria-label="Upload Active Employees Excel file"
+                   ondragover="dzOver(event,'dz-emp')"
+                   ondragleave="dzLeave('dz-emp')"
+                   ondrop="dzDrop(event,'dz-emp','empFile')"
+                   onkeydown="if(event.key==='Enter'||event.key===' ')document.getElementById('empFile').click()">
+                <input type="file" id="empFile" accept=".xlsx" aria-label="Active Employees Excel file"
+                       onchange="fileChosen('empFile','dz-emp','empFileName')" />
+                <div class="upload-icon" aria-hidden="true">
+                  <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M7 9V1M4 4l3-3 3 3M2 11h10v2H2z"/>
+                  </svg>
+                </div>
+                <div class="upload-body">
+                  <span class="upload-cta">Click to upload</span>
+                  <span class="upload-hint">XLSX files only</span>
+                  <span class="upload-filename" id="empFileName"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Upload status -->
+          <div class="status-bar" id="uploadStatus" role="status" aria-live="polite">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="7" cy="7" r="6"/><line x1="7" y1="5" x2="7" y2="7"/><circle cx="7" cy="9.5" r="0.5" fill="currentColor"/>
+            </svg>
+            Upload both Excel files to get started.
+          </div>
+
+          <!-- Demo downloads -->
+          <div class="demo-row">
+            <span class="demo-label">No data?</span>
+            <a class="demo-link" href="/api/demo/active-employees">Download sample: Active Employees</a>
+            <span class="demo-sep" aria-hidden="true">/</span>
+            <a class="demo-link" href="/api/demo/course-enrollments">Download sample: Course Progress</a>
+          </div>
+        </section>
+
+        <hr class="divider" />
+
+        <!-- ── Step 2: Send ── -->
+        <section class="step" aria-labelledby="step2-title">
+          <div class="step-header">
+            <div class="step-num" aria-hidden="true">2</div>
+            <h2 class="step-title" id="step2-title">Send Notifications</h2>
+          </div>
+
+          <div class="send-card">
+            <p class="send-card-desc">
+              The system intersects both sheets to identify active employees with incomplete course enrollments. It then sends personalised HTML emails — one per employee, one per mentor (grouped), and a master report to the CEO.
+            </p>
+            <div class="send-footer">
+              <span class="send-meta">SMTP credentials are required in the configuration panel.</span>
+              <button class="btn-primary" id="sendBtn" onclick="submitForm()" type="button">
+                <span id="sendIcon" aria-hidden="true">
+                  <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M1 7h12M8 2l5 5-5 5"/>
+                  </svg>
+                </span>
+                <div class="btn-spinner" id="sendSpinner" aria-hidden="true"></div>
+                <span id="sendText">Run and Send</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <hr class="divider" />
+
+        <!-- ── Results ── -->
+        <section id="resultsBlock" aria-labelledby="results-title" aria-live="polite">
+
+          <div class="results-header">
+            <div class="step-num" aria-hidden="true">3</div>
+            <h2 class="results-title" id="results-title">Results</h2>
+          </div>
+
+          <div id="resultBanner" style="margin-bottom:14px"></div>
+
+          <div class="stats-grid" id="statsRow" style="display:none">
+            <div class="stat-card">
+              <div class="stat-value blue" id="cntActive">0</div>
+              <div class="stat-label">Active Employees</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value teal" id="cntCourse">0</div>
+              <div class="stat-label">Course Rows</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value red" id="cntIncomplete">0</div>
+              <div class="stat-label">Incomplete Records</div>
+            </div>
+          </div>
+
+          <div class="table-card" id="tableBlock" style="display:none">
+            <div class="table-card-header">
+              <span class="table-card-title">Incomplete Records — Preview</span>
+              <span class="table-badge" id="tableCount">0 records</span>
+            </div>
+            <div class="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Emp ID</th>
+                    <th scope="col">Name</th>
+                    <th scope="col">Email</th>
+                    <th scope="col">Department</th>
+                    <th scope="col">Course Name</th>
+                    <th scope="col">Course ID</th>
+                    <th scope="col">Mentor Email</th>
+                    <th scope="col">Status</th>
+                  </tr>
+                </thead>
+                <tbody id="tableBody"></tbody>
+              </table>
+            </div>
+          </div>
+
+        </section>
+
+      </div><!-- /content -->
+    </main>
+
+  </div><!-- /body-layout -->
+</div><!-- /app -->
+
+<!-- Processing Overlay -->
+<div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-label="Processing">
+  <div class="overlay-card">
+    <div class="ov-spinner" aria-hidden="true"></div>
+    <div class="ov-title">Processing</div>
+    <div class="ov-sub">This may take a moment</div>
+    <div class="ov-steps" role="list">
+      <div class="ov-step active" id="os1" role="listitem"><div class="ov-dot"></div>Parsing Excel files</div>
+      <div class="ov-step"        id="os2" role="listitem"><div class="ov-dot"></div>Running intersection</div>
+      <div class="ov-step"        id="os3" role="listitem"><div class="ov-dot"></div>Generating email content</div>
+      <div class="ov-step"        id="os4" role="listitem"><div class="ov-dot"></div>Sending notifications</div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" role="alert" aria-live="assertive"></div>
+
+<script>
+  // ── Sidebar toggle (mobile) ─────────────────────────────────────────────
+  function toggleSidebar() {
+    const sidebar   = document.getElementById('sidebar');
+    const backdrop  = document.getElementById('sidebarBackdrop');
+    const isOpen    = sidebar.classList.contains('open');
+    sidebar.classList.toggle('open', !isOpen);
+    backdrop.classList.toggle('show', !isOpen);
+    document.body.style.overflow = isOpen ? '' : 'hidden';
+  }
+
+  // ── Port stepper ────────────────────────────────────────────────────────
+  function adjustPort(delta) {
+    const el  = document.getElementById('smtpPort');
+    const val = parseInt(el.value) || 587;
+    el.value  = Math.max(1, Math.min(65535, val + delta));
+  }
+
+  // ── Password visibility toggle ──────────────────────────────────────────
+  function togglePw(id, btn) {
+    const el    = document.getElementById(id);
+    const shown = el.type === 'text';
+    el.type     = shown ? 'password' : 'text';
+    btn.setAttribute('aria-label', shown ? 'Show password' : 'Hide password');
+    // Swap icon: eye vs eye-off
+    const svg = btn.querySelector('svg');
+    svg.innerHTML = shown
+      ? '<path d="M1 7s2-4 6-4 6 4 6 4-2 4-6 4-6-4-6-4z"/><circle cx="7" cy="7" r="1.5"/>'
+      : '<line x1="2" y1="2" x2="12" y2="12"/><path d="M6.4 3.2A5.5 5.5 0 0 1 7 3c4 0 6 4 6 4s-.6 1.3-1.8 2.3"/><path d="M3 4.9A6 6 0 0 0 1 7s2 4 6 4c1.2 0 2.3-.3 3.2-.9"/>';
+  }
+
+  // ── Drag and drop ───────────────────────────────────────────────────────
+  function dzOver(e, dzId) {
+    e.preventDefault();
+    document.getElementById(dzId).classList.add('dragover');
+  }
+  function dzLeave(dzId) {
+    document.getElementById(dzId).classList.remove('dragover');
+  }
+  function dzDrop(e, dzId, inputId) {
+    e.preventDefault();
+    document.getElementById(dzId).classList.remove('dragover');
+    if (e.dataTransfer && e.dataTransfer.files.length) {
+      const nameId = dzId === 'dz-emp' ? 'empFileName' : 'courseFileName';
+      try {
+        const dt = new DataTransfer();
+        dt.items.add(e.dataTransfer.files[0]);
+        document.getElementById(inputId).files = dt.files;
+      } catch (_) {}
+      fileChosen(inputId, dzId, nameId);
+    }
+  }
+
+  // ── File chosen ─────────────────────────────────────────────────────────
+  function fileChosen(inputId, dzId, nameId) {
+    const f = document.getElementById(inputId).files[0];
+    if (!f) return;
+    document.getElementById(dzId).classList.add('has-file');
+    document.getElementById(nameId).textContent = f.name;
+    updateUploadStatus();
+  }
+
+  function updateUploadStatus() {
+    const emp    = document.getElementById('empFile').files[0];
+    const course = document.getElementById('courseFile').files[0];
+    const bar    = document.getElementById('uploadStatus');
+    const checkSvg = '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="2,7 5.5,10.5 12,4"/></svg>';
+    const infoSvg  = '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7" cy="7" r="6"/><line x1="7" y1="5" x2="7" y2="7"/><circle cx="7" cy="9.5" r="0.5" fill="currentColor"/></svg>';
+    if (emp && course) {
+      bar.className   = 'status-bar success';
+      bar.innerHTML   = checkSvg + ' Both files loaded — ready to send.';
+    } else if (emp || course) {
+      bar.className   = 'status-bar';
+      bar.innerHTML   = infoSvg + ' Upload the ' + (emp ? 'Course Progress' : 'Active Employees') + ' file to continue.';
+    } else {
+      bar.className   = 'status-bar';
+      bar.innerHTML   = infoSvg + ' Upload both Excel files to get started.';
+    }
+  }
+
+  // ── Overlay step animation ──────────────────────────────────────────────
+  let _osTimer = null;
+  function startSteps() {
+    const ids = ['os1','os2','os3','os4'];
+    ids.forEach(id => { document.getElementById(id).className = 'ov-step'; });
+    document.getElementById('os1').className = 'ov-step active';
+    let idx = 0;
+    _osTimer = setInterval(() => {
+      if (idx < ids.length - 1) {
+        document.getElementById(ids[idx]).className = 'ov-step done';
+        idx++;
+        document.getElementById(ids[idx]).className = 'ov-step active';
+      }
+    }, 1500);
+  }
+  function stopSteps() {
+    clearInterval(_osTimer);
+    ['os1','os2','os3','os4'].forEach(id => {
+      document.getElementById(id).className = 'ov-step done';
+    });
+  }
+
+  // ── Validation ──────────────────────────────────────────────────────────
+  function validate() {
+    const checks = [
+      [!document.getElementById('empFile').files[0],    'Please upload the Active Employees Excel file.'],
+      [!document.getElementById('courseFile').files[0], 'Please upload the Course Progress Excel file.'],
+      [!g('smtpHost'),     'SMTP Host is required.'],
+      [!g('smtpPort'),     'SMTP Port is required.'],
+      [!g('smtpUsername'), 'SMTP Username is required.'],
+      [!document.getElementById('smtpPassword').value.trim(), 'App Password is required.'],
+      [!g('fromEmail'),    'Sender Email is required.'],
+      [!g('ceoName'),      'CEO Name is required.'],
+      [!g('ceoEmail'),     'CEO Email is required.'],
+    ];
+    for (const [fail, msg] of checks) {
+      if (fail) { toast(msg, 'err'); return false; }
+    }
+    return true;
+  }
+  function g(id) { return document.getElementById(id).value.trim(); }
+
+  // ── Submit ──────────────────────────────────────────────────────────────
+  async function submitForm() {
+    if (!validate()) return;
+
+    document.getElementById('overlay').classList.add('show');
+    startSteps();
+    setLoading(true);
+
+    const fd = new FormData();
+    fd.append('activeEmployees',   document.getElementById('empFile').files[0]);
+    fd.append('courseEnrollments', document.getElementById('courseFile').files[0]);
+    fd.append('smtpHost',     g('smtpHost'));
+    fd.append('smtpPort',     g('smtpPort'));
+    fd.append('smtpUsername', g('smtpUsername'));
+    fd.append('smtpPassword', document.getElementById('smtpPassword').value);
+    fd.append('fromEmail',    g('fromEmail'));
+    fd.append('ceoName',      g('ceoName'));
+    fd.append('ceoEmail',     g('ceoEmail'));
+
+    try {
+      const resp = await fetch('/api/course/notify', { method: 'POST', body: fd });
+      const data = await resp.json();
+      stopSteps();
+      setTimeout(() => {
+        document.getElementById('overlay').classList.remove('show');
+        renderResults(data, resp.ok);
+      }, 500);
+    } catch (err) {
+      stopSteps();
+      document.getElementById('overlay').classList.remove('show');
+      renderResults({ status: 'ERROR', message: 'Network error: ' + err.message }, false);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function setLoading(on) {
+    const btn = document.getElementById('sendBtn');
+    btn.disabled = on;
+    document.getElementById('sendSpinner').style.display = on ? 'block' : 'none';
+    document.getElementById('sendIcon').style.display    = on ? 'none'  : 'inline-flex';
+    document.getElementById('sendText').textContent      = on ? 'Processing...' : 'Run and Send';
+  }
+
+  // ── Render results ──────────────────────────────────────────────────────
+  function renderResults(data, ok) {
+    const block = document.getElementById('resultsBlock');
+    block.style.display = 'block';
+
+    const isOk = ok && data.status !== 'ERROR';
+    const checkSvg = '<svg style="width:14px;height:14px;flex-shrink:0" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="2,7 5.5,10.5 12,4"/></svg>';
+    const warnSvg  = '<svg style="width:14px;height:14px;flex-shrink:0" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 1L13 12H1z"/><line x1="7" y1="5.5" x2="7" y2="8.5"/><circle cx="7" cy="10.5" r="0.5" fill="currentColor"/></svg>';
+
+    document.getElementById('resultBanner').innerHTML = isOk
+      ? `<div class="status-bar success" role="status">${checkSvg}&nbsp;${escHtml(data.message)}</div>`
+      : `<div class="status-bar error" role="alert">${warnSvg}&nbsp;${escHtml(data.message || 'An unexpected error occurred.')}</div>`;
+
+    if (isOk) {
+      const sr = document.getElementById('statsRow');
+      sr.style.display = 'grid';
+      animCount('cntActive',     data.activeEmployeeCount || 0);
+      animCount('cntCourse',     data.courseRowCount      || 0);
+      animCount('cntIncomplete', data.incompleteCount     || 0);
+
+      const preview = data.preview;
+      if (preview && preview.length > 0) {
+        document.getElementById('tableCount').textContent = (data.incompleteCount || preview.length) + ' records';
+        document.getElementById('tableBody').innerHTML = preview.map(r =>
+          `<tr>
+            <td><span class="tag tag-blue">${escHtml(r.employeeId)}</span></td>
+            <td>${escHtml(r.name)}</td>
+            <td>${escHtml(r.email)}</td>
+            <td>${escHtml(r.department)}</td>
+            <td>${escHtml(r.courseName)}</td>
+            <td><span class="tag tag-blue">${escHtml(r.courseId)}</span></td>
+            <td>${escHtml(r.mentorEmail)}</td>
+            <td><span class="tag tag-red">Incomplete</span></td>
+          </tr>`
+        ).join('');
+        document.getElementById('tableBlock').style.display = 'block';
+      }
+      toast('Emails dispatched successfully.', 'ok');
+    } else {
+      toast(data.message || 'An error occurred.', 'err');
+    }
+
+    block.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  // ── Animated counter ────────────────────────────────────────────────────
+  function animCount(id, target) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (target === 0) { el.textContent = '0'; return; }
+    const dur = 700, step = 16;
+    const inc = target / (dur / step);
+    let cur = 0;
+    const t = setInterval(() => {
+      cur = Math.min(cur + inc, target);
+      el.textContent = Math.round(cur);
+      if (cur >= target) clearInterval(t);
+    }, step);
+  }
+
+  // ── Reset form ──────────────────────────────────────────────────────────
+  function resetForm() {
+    ['empFile','courseFile'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    ['dz-emp','dz-course'].forEach(id => {
+      document.getElementById(id).classList.remove('has-file','dragover');
+    });
+    ['empFileName','courseFileName'].forEach(id => {
+      document.getElementById(id).textContent = '';
+    });
+    document.getElementById('resultsBlock').style.display = 'none';
+    document.getElementById('statsRow').style.display     = 'none';
+    document.getElementById('tableBlock').style.display   = 'none';
+    document.getElementById('tableBody').innerHTML        = '';
+    document.getElementById('resultBanner').innerHTML     = '';
+    updateUploadStatus();
+    toast('Form has been reset.', '');
+  }
+
+  // ── HTML escape ─────────────────────────────────────────────────────────
+  function escHtml(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // ── Toast ────────────────────────────────────────────────────────────────
+  function toast(msg, type) {
+    const el    = document.getElementById('toast');
+    el.textContent = msg;
+    el.className   = 'show' + (type === 'err' ? ' toast-err' : type === 'ok' ? ' toast-ok' : '');
+    clearTimeout(el._t);
+    el._t = setTimeout(() => {
+      el.classList.remove('show', 'toast-err', 'toast-ok');
+    }, 3500);
+  }
+</script>
+</body>
+</html>

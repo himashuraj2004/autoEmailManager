@@ -1,0 +1,25 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: doable1-ingress
+  namespace: doable1
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "25m"   # allow large Excel uploads
+    nginx.ingress.kubernetes.io/client-max-body-size: "25m"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: doable1.yourdomain.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: doable1-svc
+                port:
+                  number: 80
+  tls:
+    - hosts:
+        - doable1.yourdomain.com
+      secretName: doable1-tls
