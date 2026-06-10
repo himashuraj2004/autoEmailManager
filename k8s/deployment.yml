@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: doable1
+  namespace: doable1
+  labels:
+    app: doable1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: doable1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: doable1
+    spec:
+      containers:
+        - name: doable1
+          image: ghcr.io/himashuraj2004/doable1:latest   # replaced by CI with exact SHA tag
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: doable1-config
+          env:
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: doable1-secrets
+                  key: GEMINI_API_KEY
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            failureThreshold: 3
