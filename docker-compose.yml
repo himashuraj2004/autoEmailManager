@@ -1,5 +1,6 @@
 services:
   doable1:
+    image: ${IMAGE:-ghcr.io/himashuraj2004/autoEmailManager:latest}
     build:
       context: .
       dockerfile: Dockerfile
