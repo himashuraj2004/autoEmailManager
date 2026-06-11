@@ -1,0 +1,28 @@
+services:
+  doable1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: doable1
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_APPLICATION_NAME: doable1
+      SPRING_SERVLET_MULTIPART_MAX_FILE_SIZE: 10MB
+      SPRING_SERVLET_MULTIPART_MAX_REQUEST_SIZE: 20MB
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+    env_file:
+      - .env
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
